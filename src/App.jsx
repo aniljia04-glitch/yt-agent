@@ -6,9 +6,8 @@ export default function App() {
   const [loading, setLoading] = useState(false);
 
   const fetchVideosFromYouTube = async (channelName) => {
-    const API_KEY = const API_KEY = import.meta.env.VITE_API_KEY;
+    const API_KEY = import.meta.env.VITE_API_KEY;
 
-    // 1. Search channel
     const searchRes = await fetch(
       `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${channelName}&key=${API_KEY}`
     );
@@ -20,7 +19,6 @@ export default function App() {
 
     const channelId = searchData.items[0].snippet.channelId;
 
-    // 2. Get uploads playlist
     const channelRes = await fetch(
       `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${API_KEY}`
     );
@@ -29,17 +27,15 @@ export default function App() {
     const uploadsPlaylistId =
       channelData.items[0].contentDetails.relatedPlaylists.uploads;
 
-    // 3. Get video list
     const videosRes = await fetch(
       `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&maxResults=20&key=${API_KEY}`
     );
     const videosData = await videosRes.json();
 
-    const videoIds = videosData.items.map(
-      (item) => item.snippet.resourceId.videoId
-    ).join(",");
+    const videoIds = videosData.items
+      .map((item) => item.snippet.resourceId.videoId)
+      .join(",");
 
-    // 4. Get stats
     const statsRes = await fetch(
       `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoIds}&key=${API_KEY}`
     );
@@ -75,6 +71,29 @@ export default function App() {
     const allLinks = videos.map((v) => v.url).join("\n");
     navigator.clipboard.writeText(allLinks);
     alert("All links copied!");
+  };
+
+  const downloadCSV = () => {
+    const header = ["Title", "Views", "Date", "URL"];
+
+    const rows = videos.map((v) => [
+      `"${v.title}"`,
+      v.views,
+      new Date(v.date).toLocaleDateString(),
+      v.url,
+    ]);
+
+    const csvContent = [header, ...rows]
+      .map((e) => e.join(","))
+      .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${channel}_videos.csv`;
+    a.click();
   };
 
   return (
@@ -121,13 +140,26 @@ export default function App() {
 
       {/* Two Panels */}
       <div style={{ display: "flex", gap: 20 }}>
-
         {/* LEFT PANEL */}
-        <div style={{ flex: 1, background: "#111", padding: 15, borderRadius: 10 }}>
+        <div
+          style={{
+            flex: 1,
+            background: "#111",
+            padding: 15,
+            borderRadius: 10,
+          }}
+        >
           <h3>📊 Video Details</h3>
 
           {videos.map((v, i) => (
-            <div key={v.id} style={{ marginBottom: 15, borderBottom: "1px solid #222", paddingBottom: 10 }}>
+            <div
+              key={v.id}
+              style={{
+                marginBottom: 15,
+                borderBottom: "1px solid #222",
+                paddingBottom: 10,
+              }}
+            >
               <div style={{ fontWeight: "bold" }}>
                 {i + 1}. {v.title}
               </div>
@@ -144,23 +176,46 @@ export default function App() {
         </div>
 
         {/* RIGHT PANEL */}
-        <div style={{ flex: 1, background: "#111", padding: 15, borderRadius: 10 }}>
+        <div
+          style={{
+            flex: 1,
+            background: "#111",
+            padding: 15,
+            borderRadius: 10,
+          }}
+        >
           <h3>🔗 Video Links</h3>
 
-          <button
-            onClick={copyAllLinks}
-            style={{
-              marginBottom: 10,
-              padding: "8px 12px",
-              background: "#ff0033",
-              border: "none",
-              color: "#fff",
-              borderRadius: 6,
-              cursor: "pointer"
-            }}
-          >
-            Copy All Links
-          </button>
+          <div style={{ marginBottom: 10 }}>
+            <button
+              onClick={copyAllLinks}
+              style={{
+                padding: "8px 12px",
+                background: "#ff0033",
+                border: "none",
+                color: "#fff",
+                borderRadius: 6,
+                cursor: "pointer",
+                marginRight: 10,
+              }}
+            >
+              Copy All Links
+            </button>
+
+            <button
+              onClick={downloadCSV}
+              style={{
+                padding: "8px 12px",
+                background: "#22c55e",
+                border: "none",
+                color: "#fff",
+                borderRadius: 6,
+                cursor: "pointer",
+              }}
+            >
+              Download CSV
+            </button>
+          </div>
 
           {videos.map((v, i) => (
             <div key={v.id} style={{ marginBottom: 8 }}>
@@ -174,7 +229,6 @@ export default function App() {
             </div>
           ))}
         </div>
-
       </div>
     </div>
   );
