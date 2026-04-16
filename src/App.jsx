@@ -6,7 +6,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
 
   const fetchVideosFromYouTube = async (channelName) => {
-    const API_KEY = "AIzaSyBV4ddWc9SuGLGMY0rQ5UAV8GKrcdLzvHU";
+    const API_KEY = const API_KEY = import.meta.env.VITE_API_KEY;
 
     // 1. Search channel
     const searchRes = await fetch(
