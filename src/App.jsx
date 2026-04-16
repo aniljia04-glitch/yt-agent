@@ -6,8 +6,9 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [aiTitles, setAiTitles] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [minViews, setMinViews] = useState("");
 
-  // 🎥 FETCH YOUTUBE
+  // FETCH YOUTUBE
   const fetchVideosFromYouTube = async (channelName) => {
     const API_KEY = import.meta.env.VITE_API_KEY;
 
@@ -68,20 +69,24 @@ export default function App() {
     }
   };
 
-  // ENTER KEY SUPPORT ✅
   const handleKeyPress = (e) => {
     if (e.key === "Enter") run();
   };
 
-  // COPY LINKS
+  // FILTER
+  const filteredVideos = videos.filter(v =>
+    minViews ? v.views >= Number(minViews) : true
+  );
+
+  // COPY
   const copyAllLinks = () => {
-    navigator.clipboard.writeText(videos.map(v => v.url).join("\n"));
+    navigator.clipboard.writeText(filteredVideos.map(v => v.url).join("\n"));
     alert("Copied!");
   };
 
   // CSV
   const downloadCSV = () => {
-    const rows = videos.map(v =>
+    const rows = filteredVideos.map(v =>
       `"${v.title}",${v.views},${new Date(v.date).toLocaleDateString()},${v.url}`
     );
     const csv = "Title,Views,Date,URL\n" + rows.join("\n");
@@ -109,7 +114,7 @@ export default function App() {
         },
         body: JSON.stringify({
           model: "gpt-4o-mini",
-          input: `Generate 10 viral YouTube titles based on:\n${videos.map(v => v.title).join("\n")}`
+          input: `Generate 10 viral YouTube titles based on:\n${filteredVideos.map(v => v.title).join("\n")}`
         }),
       });
 
@@ -140,19 +145,13 @@ export default function App() {
       <h1 style={{ color: "#ef4444" }}>YT Agent 🔥</h1>
 
       {/* INPUT */}
-      <div style={{ marginBottom: 25 }}>
+      <div style={{ marginBottom: 20 }}>
         <input
           value={channel}
           onChange={(e) => setChannel(e.target.value)}
-          onKeyDown={handleKeyPress}  // ✅ ENTER FIX
+          onKeyDown={handleKeyPress}
           placeholder="Enter channel name"
-          style={{
-            padding: 12,
-            borderRadius: 8,
-            border: "1px solid #333",
-            marginRight: 10,
-            width: 260
-          }}
+          style={{ padding: 12, marginRight: 10, borderRadius: 8 }}
         />
 
         <button style={btn("#ef4444")} onClick={run}>
@@ -160,14 +159,23 @@ export default function App() {
         </button>
       </div>
 
-      {/* PANELS */}
-      <div style={{ display: "flex", gap: 25 }}>
+      {/* FILTER */}
+      <div style={{ marginBottom: 20 }}>
+        <input
+          type="number"
+          placeholder="Min views (e.g. 100000)"
+          value={minViews}
+          onChange={(e) => setMinViews(e.target.value)}
+          style={{ padding: 10, borderRadius: 8 }}
+        />
+      </div>
+
+      <div style={{ display: "flex", gap: 20 }}>
 
         {/* LEFT */}
         <div style={panel}>
           <h3>📊 Video Details</h3>
-
-          {videos.map((v, i) => (
+          {filteredVideos.map((v, i) => (
             <div key={v.id} style={item}>
               <b>{i + 1}. {v.title}</b><br />
               👀 {v.views} | 📅 {new Date(v.date).toLocaleDateString()}
@@ -179,7 +187,7 @@ export default function App() {
         <div style={panel}>
           <h3>🔗 Video Links</h3>
 
-          <div style={{ marginBottom: 15 }}>
+          <div style={{ marginBottom: 10 }}>
             <button style={btn("#ef4444")} onClick={copyAllLinks}>Copy</button>
             <button style={btn("#22c55e")} onClick={downloadCSV}>CSV</button>
             <button style={btn("#3b82f6")} onClick={generateAITitles}>
@@ -187,44 +195,34 @@ export default function App() {
             </button>
           </div>
 
-          {/* CLEAN LIST */}
-          <ul style={{ paddingLeft: 20 }}>
-            {videos.map((v, i) => (
-              <li key={v.id} style={{ marginBottom: 8 }}>
+          {/* ✅ NUMBERED LIST */}
+          <ol style={{ paddingLeft: 20 }}>
+            {filteredVideos.map((v) => (
+              <li key={v.id} style={{ marginBottom: 6 }}>
                 <a
                   href={v.url}
                   target="_blank"
-                  style={{
-                    color: "#60a5fa",
-                    textDecoration: "none",
-                    wordBreak: "break-all"
-                  }}
+                  style={{ color: "#60a5fa", wordBreak: "break-all" }}
                 >
                   {v.url}
                 </a>
               </li>
             ))}
-          </ul>
+          </ol>
         </div>
       </div>
 
       {/* AI OUTPUT */}
       {aiTitles && (
-        <div style={{
-          marginTop: 30,
-          background: "#111827",
-          padding: 20,
-          borderRadius: 12
-        }}>
+        <div style={{ marginTop: 30, background: "#111827", padding: 20 }}>
           <h3>🤖 AI Titles</h3>
-          <pre style={{ whiteSpace: "pre-wrap" }}>{aiTitles}</pre>
+          <pre>{aiTitles}</pre>
         </div>
       )}
     </div>
   );
 }
 
-// 🎨 STYLES
 const panel = {
   flex: 1,
   background: "#1e293b",
@@ -233,9 +231,7 @@ const panel = {
 };
 
 const item = {
-  marginBottom: 15,
-  borderBottom: "1px solid #333",
-  paddingBottom: 10
+  marginBottom: 10
 };
 
 const btn = (bg) => ({
