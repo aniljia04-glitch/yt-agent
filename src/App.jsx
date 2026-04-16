@@ -7,7 +7,7 @@ export default function App() {
   const [aiTitles, setAiTitles] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
 
-  // ✅ Fetch YouTube Data
+  // 🎥 FETCH YOUTUBE DATA
   const fetchVideosFromYouTube = async (channelName) => {
     const API_KEY = import.meta.env.VITE_API_KEY;
 
@@ -46,7 +46,6 @@ export default function App() {
       id: item.id,
       title: item.snippet.title,
       url: `https://www.youtube.com/watch?v=${item.id}`,
-      thumbnail: item.snippet.thumbnails.medium.url,
       views: item.statistics.viewCount,
       date: item.snippet.publishedAt,
     }));
@@ -68,36 +67,34 @@ export default function App() {
     }
   };
 
-  // ✅ Copy links
+  // 📋 COPY LINKS
   const copyAllLinks = () => {
     navigator.clipboard.writeText(videos.map(v => v.url).join("\n"));
     alert("Copied!");
   };
 
-  // ✅ Download CSV
+  // 📥 CSV DOWNLOAD
   const downloadCSV = () => {
-    const header = ["Title", "Views", "Date", "URL"];
-
-    const rows = videos.map(v => [
-      `"${v.title}"`,
-      v.views,
-      new Date(v.date).toLocaleDateString(),
-      v.url
-    ]);
-
-    const csv = [header, ...rows].map(e => e.join(",")).join("\n");
+    const rows = videos.map(v =>
+      `"${v.title}",${v.views},${new Date(v.date).toLocaleDateString()},${v.url}`
+    );
+    const csv = "Title,Views,Date,URL\n" + rows.join("\n");
 
     const blob = new Blob([csv], { type: "text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `${channel}_videos.csv`;
+    a.download = `${channel}.csv`;
     a.click();
   };
 
-  // ✅ AI FUNCTION (FIXED)
+  // 🤖 AI TITLES (FIXED)
   const generateAITitles = async () => {
-    const OPENAI_KEY = import.meta.env.VITE_OPENAI_KEY;
-    const titles = videos.map(v => v.title).join("\n");
+    const key = import.meta.env.VITE_OPENAI_KEY;
+
+    if (!key) {
+      setAiTitles("❌ Missing OpenAI key in Vercel");
+      return;
+    }
 
     setAiLoading(true);
     setAiTitles("");
@@ -107,24 +104,27 @@ export default function App() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${OPENAI_KEY}`,
+          Authorization: `Bearer ${key}`,
         },
         body: JSON.stringify({
           model: "gpt-4o-mini",
-          input: `These are YouTube titles:\n${titles}\n\nGenerate 10 viral YouTube titles.`,
+          input: `Create 10 viral YouTube titles based on:\n${videos.map(v => v.title).join("\n")}`
         }),
       });
 
       const data = await res.json();
 
-      const output =
-        data.output_text ||
-        data.output?.map(o =>
-          o.content?.map(c => c.text).join("")
-        ).join("\n") ||
-        "No AI response";
+      if (!res.ok) {
+        setAiTitles("❌ " + JSON.stringify(data));
+        return;
+      }
 
-      setAiTitles(output);
+      const text =
+        data.output_text ||
+        data.output?.[0]?.content?.[0]?.text ||
+        "No response";
+
+      setAiTitles(text);
 
     } catch (err) {
       setAiTitles("Error: " + err.message);
@@ -141,29 +141,42 @@ export default function App() {
       minHeight: "100vh",
       fontFamily: "Inter, sans-serif"
     }}>
-      <h1 style={{ color: "#ef4444" }}>YT Agent 🔥</h1>
+      <h1 style={{ color: "#ef4444", marginBottom: 20 }}>
+        YT Agent 🔥
+      </h1>
 
       {/* INPUT */}
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 25 }}>
         <input
           value={channel}
           onChange={(e) => setChannel(e.target.value)}
-          placeholder="Enter channel"
+          placeholder="Enter channel name"
           style={{
-            padding: 10,
+            padding: 12,
             borderRadius: 8,
             border: "1px solid #333",
-            marginRight: 10
+            marginRight: 10,
+            width: 250
           }}
         />
 
-        <button onClick={run}>
+        <button
+          onClick={run}
+          style={{
+            padding: "12px 20px",
+            background: "#ef4444",
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            cursor: "pointer"
+          }}
+        >
           {loading ? "Loading..." : "Extract"}
         </button>
       </div>
 
       {/* PANELS */}
-      <div style={{ display: "flex", gap: 20 }}>
+      <div style={{ display: "flex", gap: 25 }}>
 
         {/* LEFT */}
         <div style={{
@@ -172,7 +185,7 @@ export default function App() {
           padding: 20,
           borderRadius: 12
         }}>
-          <h3>📊 Details</h3>
+          <h3>📊 Video Details</h3>
 
           {videos.map((v, i) => (
             <div key={v.id} style={{ marginBottom: 15 }}>
@@ -191,33 +204,46 @@ export default function App() {
         }}>
           <h3>🔗 Links</h3>
 
-          <button onClick={copyAllLinks}>Copy</button>
-          <button onClick={downloadCSV}>CSV</button>
-          <button onClick={generateAITitles}>
-            {aiLoading ? "AI..." : "AI Titles"}
-          </button>
+          {/* BUTTON ROW */}
+          <div style={{ marginBottom: 15 }}>
+            <button style={btn("#ef4444")} onClick={copyAllLinks}>Copy</button>
+            <button style={btn("#22c55e")} onClick={downloadCSV}>CSV</button>
+            <button style={btn("#3b82f6")} onClick={generateAITitles}>
+              {aiLoading ? "AI..." : "AI Titles"}
+            </button>
+          </div>
 
           {videos.map((v, i) => (
-            <div key={v.id}>
+            <div key={v.id} style={{ marginBottom: 5 }}>
               {i + 1}. <a href={v.url} target="_blank">{v.url}</a>
             </div>
           ))}
         </div>
-
       </div>
 
       {/* AI OUTPUT */}
       {aiTitles && (
         <div style={{
           marginTop: 30,
-          background: "#111",
+          background: "#111827",
           padding: 20,
-          borderRadius: 10
+          borderRadius: 12
         }}>
           <h3>🤖 AI Titles</h3>
-          <pre>{aiTitles}</pre>
+          <pre style={{ whiteSpace: "pre-wrap" }}>{aiTitles}</pre>
         </div>
       )}
     </div>
   );
 }
+
+// 🎨 BUTTON STYLE
+const btn = (bg) => ({
+  padding: "10px 14px",
+  marginRight: 10,
+  background: bg,
+  color: "#fff",
+  border: "none",
+  borderRadius: 8,
+  cursor: "pointer"
+});
