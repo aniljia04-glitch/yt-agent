@@ -16,8 +16,6 @@ export default function App() {
       `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${name}&key=${key}`
     ).then(r => r.json());
 
-    if (!search.items?.length) throw new Error("Channel not found");
-
     const channelId = search.items[0].snippet.channelId;
 
     const channelData = await fetch(
@@ -44,7 +42,8 @@ export default function App() {
       title: v.snippet.title,
       url: `https://www.youtube.com/watch?v=${v.id}`,
       views: Number(v.statistics.viewCount),
-      date: v.snippet.publishedAt
+      date: v.snippet.publishedAt,
+      thumbnail: v.snippet.thumbnails.medium.url
     }));
   };
 
@@ -59,7 +58,7 @@ export default function App() {
       const data = await fetchVideos(channel);
       setVideos(data);
     } catch (e) {
-      alert(e.message);
+      alert("Channel not found");
     } finally {
       setLoading(false);
     }
@@ -94,14 +93,9 @@ export default function App() {
     a.click();
   };
 
-  // AI FIX
+  // AI
   const generateAI = async () => {
     const key = import.meta.env.VITE_OPENAI_KEY;
-
-    if (!key) {
-      setAiTitles("❌ OpenAI key missing in Vercel");
-      return;
-    }
 
     setAiLoading(true);
     setAiTitles("");
@@ -122,14 +116,14 @@ export default function App() {
       const data = await res.json();
 
       if (!res.ok) {
-        setAiTitles("❌ " + JSON.stringify(data));
+        setAiTitles("⚠️ Add billing in OpenAI (quota exceeded)");
         return;
       }
 
       const text =
         data.output_text ||
         data.output?.[0]?.content?.[0]?.text ||
-        "No AI response";
+        "No response";
 
       setAiTitles(text);
 
@@ -144,11 +138,9 @@ export default function App() {
     <div style={styles.container}>
       <h1 style={styles.title}>YT Agent 🔥</h1>
 
-      {/* FORM SECTION */}
+      {/* INPUT */}
       <div style={styles.form}>
-
-        {/* CHANNEL */}
-        <div style={styles.inputGroup}>
+        <div>
           <label>Channel Name</label>
           <input
             value={channel}
@@ -158,46 +150,49 @@ export default function App() {
           />
         </div>
 
-        {/* FILTER */}
-        <div style={styles.inputGroup}>
-          <label>Minimum Views Filter</label>
+        <div>
+          <label>Minimum Views</label>
           <input
             type="number"
             value={minViews}
             onChange={(e) => setMinViews(e.target.value)}
-            placeholder="e.g. 100000"
+            placeholder="100000"
           />
         </div>
 
-        <button style={styles.extractBtn} onClick={run}>
-          {loading ? "Loading..." : "Extract Videos"}
+        <button style={styles.extract} onClick={run}>
+          {loading ? "Loading..." : "Extract"}
         </button>
       </div>
 
-      {/* PANELS */}
       <div style={styles.grid}>
 
-        {/* DETAILS */}
+        {/* LEFT */}
         <div style={styles.card}>
           <h3>📊 Video Details</h3>
+
           {filtered.map((v, i) => (
-            <div key={v.id} style={styles.item}>
-              <b>{i + 1}. {v.title}</b>
-              <div>👀 {v.views.toLocaleString()}</div>
-              <div>📅 {new Date(v.date).toLocaleDateString()}</div>
+            <div key={v.id} style={styles.videoCard}>
+              <img src={v.thumbnail} style={styles.thumb} />
+
+              <div>
+                <b>{i + 1}. {v.title}</b>
+                <div>👀 {v.views.toLocaleString()}</div>
+                <div>📅 {new Date(v.date).toLocaleDateString()}</div>
+              </div>
             </div>
           ))}
         </div>
 
-        {/* LINKS */}
+        {/* RIGHT */}
         <div style={styles.card}>
-          <h3>🔗 Video Links</h3>
+          <h3>🔗 Links</h3>
 
           <div style={{ marginBottom: 10 }}>
-            <button style={styles.btnRed} onClick={copyLinks}>Copy</button>
-            <button style={styles.btnGreen} onClick={downloadCSV}>CSV</button>
-            <button style={styles.btnBlue} onClick={generateAI}>
-              {aiLoading ? "Generating..." : "AI Titles"}
+            <button style={styles.red} onClick={copyLinks}>Copy</button>
+            <button style={styles.green} onClick={downloadCSV}>CSV</button>
+            <button style={styles.blue} onClick={generateAI}>
+              {aiLoading ? "AI..." : "AI Titles"}
             </button>
           </div>
 
@@ -213,10 +208,10 @@ export default function App() {
         </div>
       </div>
 
-      {/* AI OUTPUT */}
+      {/* AI */}
       {aiTitles && (
-        <div style={styles.aiBox}>
-          <h3>🤖 AI Generated Titles</h3>
+        <div style={styles.ai}>
+          <h3>🤖 AI Titles</h3>
           <pre>{aiTitles}</pre>
         </div>
       )}
@@ -231,73 +226,42 @@ const styles = {
     margin: "auto",
     padding: 20,
     background: "#0f172a",
-    color: "#fff",
-    minHeight: "100vh"
+    color: "#fff"
   },
-  title: {
-    textAlign: "center",
-    color: "#ef4444",
-    marginBottom: 20
-  },
+  title: { textAlign: "center", color: "#ef4444" },
   form: {
     display: "flex",
-    gap: 15,
+    gap: 20,
     justifyContent: "center",
-    alignItems: "end",
-    marginBottom: 25
+    marginBottom: 20
   },
-  inputGroup: {
-    display: "flex",
-    flexDirection: "column"
-  },
-  extractBtn: {
+  extract: {
     background: "#ef4444",
     color: "#fff",
-    padding: "10px 16px",
-    borderRadius: 8,
-    border: "none",
-    cursor: "pointer"
+    padding: "10px 15px",
+    borderRadius: 8
   },
-  grid: {
-    display: "flex",
-    gap: 20
-  },
+  grid: { display: "flex", gap: 20 },
   card: {
     flex: 1,
     background: "#1e293b",
     padding: 15,
-    borderRadius: 12
+    borderRadius: 10
   },
-  item: {
+  videoCard: {
+    display: "flex",
+    gap: 10,
     marginBottom: 10,
-    borderBottom: "1px solid #333"
+    borderBottom: "1px solid #333",
+    paddingBottom: 10
   },
-  link: {
-    color: "#60a5fa",
-    wordBreak: "break-all"
-  },
-  btnRed: {
-    background: "#ef4444",
-    color: "#fff",
-    padding: "8px 12px",
-    borderRadius: 6,
-    marginRight: 6
-  },
-  btnGreen: {
-    background: "#22c55e",
-    color: "#fff",
-    padding: "8px 12px",
-    borderRadius: 6,
-    marginRight: 6
-  },
-  btnBlue: {
-    background: "#3b82f6",
-    color: "#fff",
-    padding: "8px 12px",
-    borderRadius: 6
-  },
-  aiBox: {
-    marginTop: 30,
+  thumb: { width: 120, borderRadius: 6 },
+  red: { background: "#ef4444", marginRight: 6 },
+  green: { background: "#22c55e", marginRight: 6 },
+  blue: { background: "#3b82f6" },
+  link: { color: "#60a5fa" },
+  ai: {
+    marginTop: 20,
     background: "#111827",
     padding: 15,
     borderRadius: 10
