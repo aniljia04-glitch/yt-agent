@@ -7,6 +7,7 @@ export default function App() {
   const [aiTitles, setAiTitles] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
 
+  // ✅ Fetch YouTube Data
   const fetchVideosFromYouTube = async (channelName) => {
     const API_KEY = import.meta.env.VITE_API_KEY;
 
@@ -67,32 +68,36 @@ export default function App() {
     }
   };
 
+  // ✅ Copy links
   const copyAllLinks = () => {
-    navigator.clipboard.writeText(videos.map((v) => v.url).join("\n"));
-    alert("Links copied!");
+    navigator.clipboard.writeText(videos.map(v => v.url).join("\n"));
+    alert("Copied!");
   };
 
+  // ✅ Download CSV
   const downloadCSV = () => {
     const header = ["Title", "Views", "Date", "URL"];
-    const rows = videos.map((v) => [
+
+    const rows = videos.map(v => [
       `"${v.title}"`,
       v.views,
       new Date(v.date).toLocaleDateString(),
-      v.url,
+      v.url
     ]);
 
-    const csv = [header, ...rows].map((e) => e.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
+    const csv = [header, ...rows].map(e => e.join(",")).join("\n");
 
+    const blob = new Blob([csv], { type: "text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `${channel}_videos.csv`;
     a.click();
   };
 
+  // ✅ AI FUNCTION (FIXED)
   const generateAITitles = async () => {
     const OPENAI_KEY = import.meta.env.VITE_OPENAI_KEY;
-    const titles = videos.map((v) => v.title).join("\n");
+    const titles = videos.map(v => v.title).join("\n");
 
     setAiLoading(true);
     setAiTitles("");
@@ -106,14 +111,21 @@ export default function App() {
         },
         body: JSON.stringify({
           model: "gpt-4o-mini",
-          input: `These are YouTube video titles:\n${titles}\n\nGenerate 10 viral YouTube titles.`,
+          input: `These are YouTube titles:\n${titles}\n\nGenerate 10 viral YouTube titles.`,
         }),
       });
 
       const data = await res.json();
-      const output = data.output?.[0]?.content?.[0]?.text || "No response";
+
+      const output =
+        data.output_text ||
+        data.output?.map(o =>
+          o.content?.map(c => c.text).join("")
+        ).join("\n") ||
+        "No AI response";
 
       setAiTitles(output);
+
     } catch (err) {
       setAiTitles("Error: " + err.message);
     } finally {
@@ -122,42 +134,67 @@ export default function App() {
   };
 
   return (
-    <div style={{ padding: 20, background: "#0a0a0a", color: "#fff", minHeight: "100vh" }}>
-      <h1 style={{ color: "#ff0033" }}>YT Agent 🔥</h1>
+    <div style={{
+      padding: 30,
+      background: "#0f172a",
+      color: "#e5e7eb",
+      minHeight: "100vh",
+      fontFamily: "Inter, sans-serif"
+    }}>
+      <h1 style={{ color: "#ef4444" }}>YT Agent 🔥</h1>
 
-      <input
-        value={channel}
-        onChange={(e) => setChannel(e.target.value)}
-        placeholder="Enter channel name"
-        style={{ padding: 10, marginRight: 10 }}
-      />
+      {/* INPUT */}
+      <div style={{ marginBottom: 20 }}>
+        <input
+          value={channel}
+          onChange={(e) => setChannel(e.target.value)}
+          placeholder="Enter channel"
+          style={{
+            padding: 10,
+            borderRadius: 8,
+            border: "1px solid #333",
+            marginRight: 10
+          }}
+        />
 
-      <button onClick={run}>
-        {loading ? "Loading..." : "Extract"}
-      </button>
+        <button onClick={run}>
+          {loading ? "Loading..." : "Extract"}
+        </button>
+      </div>
 
-      <div style={{ display: "flex", gap: 20, marginTop: 20 }}>
+      {/* PANELS */}
+      <div style={{ display: "flex", gap: 20 }}>
 
         {/* LEFT */}
-        <div style={{ flex: 1 }}>
+        <div style={{
+          flex: 1,
+          background: "#1e293b",
+          padding: 20,
+          borderRadius: 12
+        }}>
           <h3>📊 Details</h3>
+
           {videos.map((v, i) => (
-            <div key={v.id}>
-              {i + 1}. {v.title} <br />
+            <div key={v.id} style={{ marginBottom: 15 }}>
+              <b>{i + 1}. {v.title}</b><br />
               👀 {v.views} | 📅 {new Date(v.date).toLocaleDateString()}
-              <hr />
             </div>
           ))}
         </div>
 
         {/* RIGHT */}
-        <div style={{ flex: 1 }}>
+        <div style={{
+          flex: 1,
+          background: "#1e293b",
+          padding: 20,
+          borderRadius: 12
+        }}>
           <h3>🔗 Links</h3>
 
-          <button onClick={copyAllLinks}>Copy Links</button>
-          <button onClick={downloadCSV}>Download CSV</button>
+          <button onClick={copyAllLinks}>Copy</button>
+          <button onClick={downloadCSV}>CSV</button>
           <button onClick={generateAITitles}>
-            {aiLoading ? "Generating..." : "AI Titles"}
+            {aiLoading ? "AI..." : "AI Titles"}
           </button>
 
           {videos.map((v, i) => (
@@ -169,11 +206,16 @@ export default function App() {
 
       </div>
 
-      {/* AI PANEL */}
+      {/* AI OUTPUT */}
       {aiTitles && (
-        <div style={{ marginTop: 30, background: "#111", padding: 15 }}>
-          <h3>🤖 AI Generated Titles</h3>
-          <pre style={{ whiteSpace: "pre-wrap" }}>{aiTitles}</pre>
+        <div style={{
+          marginTop: 30,
+          background: "#111",
+          padding: 20,
+          borderRadius: 10
+        }}>
+          <h3>🤖 AI Titles</h3>
+          <pre>{aiTitles}</pre>
         </div>
       )}
     </div>
