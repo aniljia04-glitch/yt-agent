@@ -8,99 +8,99 @@ export default function App() {
   const [aiLoading, setAiLoading] = useState(false);
   const [minViews, setMinViews] = useState("");
 
-  // FETCH YOUTUBE
-  const fetchVideosFromYouTube = async (channelName) => {
-    const API_KEY = import.meta.env.VITE_API_KEY;
+  // 🎥 FETCH YOUTUBE
+  const fetchVideos = async (name) => {
+    const key = import.meta.env.VITE_API_KEY;
 
-    const searchRes = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${channelName}&key=${API_KEY}`
-    );
-    const searchData = await searchRes.json();
+    const search = await fetch(
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${name}&key=${key}`
+    ).then(r => r.json());
 
-    if (!searchData.items?.length) throw new Error("Channel not found");
+    if (!search.items?.length) throw new Error("Channel not found");
 
-    const channelId = searchData.items[0].snippet.channelId;
+    const channelId = search.items[0].snippet.channelId;
 
-    const channelRes = await fetch(
-      `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${API_KEY}`
-    );
-    const channelData = await channelRes.json();
+    const channelData = await fetch(
+      `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${key}`
+    ).then(r => r.json());
 
-    const uploadsPlaylistId =
+    const playlistId =
       channelData.items[0].contentDetails.relatedPlaylists.uploads;
 
-    const videosRes = await fetch(
-      `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&maxResults=50&key=${API_KEY}`
-    );
-    const videosData = await videosRes.json();
+    const list = await fetch(
+      `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=50&key=${key}`
+    ).then(r => r.json());
 
-    const videoIds = videosData.items
-      .map((item) => item.snippet.resourceId.videoId)
+    const ids = list.items
+      .map(i => i.snippet.resourceId.videoId)
       .join(",");
 
-    const statsRes = await fetch(
-      `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoIds}&key=${API_KEY}`
-    );
-    const statsData = await statsRes.json();
+    const stats = await fetch(
+      `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${ids}&key=${key}`
+    ).then(r => r.json());
 
-    return statsData.items.map((item) => ({
-      id: item.id,
-      title: item.snippet.title,
-      url: `https://www.youtube.com/watch?v=${item.id}`,
-      views: item.statistics.viewCount,
-      date: item.snippet.publishedAt,
+    return stats.items.map(v => ({
+      id: v.id,
+      title: v.snippet.title,
+      url: `https://www.youtube.com/watch?v=${v.id}`,
+      views: Number(v.statistics.viewCount),
+      date: v.snippet.publishedAt
     }));
   };
 
   const run = async () => {
     if (!channel.trim()) return;
-
     setLoading(true);
     setVideos([]);
     setAiTitles("");
 
     try {
-      const data = await fetchVideosFromYouTube(channel);
+      const data = await fetchVideos(channel);
       setVideos(data);
-    } catch (err) {
-      alert(err.message);
+    } catch (e) {
+      alert(e.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleKeyPress = (e) => {
+  const handleEnter = (e) => {
     if (e.key === "Enter") run();
   };
 
   // FILTER
-  const filteredVideos = videos.filter(v =>
+  const filtered = videos.filter(v =>
     minViews ? v.views >= Number(minViews) : true
   );
 
   // COPY
-  const copyAllLinks = () => {
-    navigator.clipboard.writeText(filteredVideos.map(v => v.url).join("\n"));
+  const copyLinks = () => {
+    navigator.clipboard.writeText(filtered.map(v => v.url).join("\n"));
     alert("Copied!");
   };
 
   // CSV
   const downloadCSV = () => {
-    const rows = filteredVideos.map(v =>
+    const rows = filtered.map(v =>
       `"${v.title}",${v.views},${new Date(v.date).toLocaleDateString()},${v.url}`
     );
     const csv = "Title,Views,Date,URL\n" + rows.join("\n");
 
-    const blob = new Blob([csv], { type: "text/csv" });
+    const blob = new Blob([csv]);
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `${channel}.csv`;
+    a.download = "videos.csv";
     a.click();
   };
 
-  // AI
-  const generateAITitles = async () => {
+  // 🤖 AI FIXED
+  const generateAI = async () => {
     const key = import.meta.env.VITE_OPENAI_KEY;
+
+    if (!key) {
+      setAiTitles("❌ Missing OpenAI Key");
+      return;
+    }
 
     setAiLoading(true);
     setAiTitles("");
@@ -110,20 +110,22 @@ export default function App() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${key}`,
+          Authorization: `Bearer ${key}`
         },
         body: JSON.stringify({
           model: "gpt-4o-mini",
-          input: `Generate 10 viral YouTube titles based on:\n${filteredVideos.map(v => v.title).join("\n")}`
-        }),
+          input: `Create 10 viral YouTube titles based on:\n${filtered.map(v => v.title).join("\n")}`
+        })
       });
 
       const data = await res.json();
 
+      console.log(data); // debug
+
       const text =
         data.output_text ||
         data.output?.[0]?.content?.[0]?.text ||
-        "No response";
+        "❌ AI returned empty response";
 
       setAiTitles(text);
 
@@ -135,75 +137,64 @@ export default function App() {
   };
 
   return (
-    <div style={{
-      padding: 30,
-      background: "#0f172a",
-      color: "#e5e7eb",
-      minHeight: "100vh",
-      fontFamily: "Inter, sans-serif"
-    }}>
-      <h1 style={{ color: "#ef4444" }}>YT Agent 🔥</h1>
+    <div style={styles.container}>
+      <h1 style={styles.title}>YT Agent 🔥</h1>
 
       {/* INPUT */}
-      <div style={{ marginBottom: 20 }}>
+      <div style={styles.inputRow}>
         <input
           value={channel}
           onChange={(e) => setChannel(e.target.value)}
-          onKeyDown={handleKeyPress}
+          onKeyDown={handleEnter}
           placeholder="Enter channel name"
-          style={{ padding: 12, marginRight: 10, borderRadius: 8 }}
+          style={styles.input}
         />
 
-        <button style={btn("#ef4444")} onClick={run}>
+        <button style={styles.btnRed} onClick={run}>
           {loading ? "Loading..." : "Extract"}
         </button>
       </div>
 
       {/* FILTER */}
-      <div style={{ marginBottom: 20 }}>
-        <input
-          type="number"
-          placeholder="Min views (e.g. 100000)"
-          value={minViews}
-          onChange={(e) => setMinViews(e.target.value)}
-          style={{ padding: 10, borderRadius: 8 }}
-        />
-      </div>
+      <input
+        type="number"
+        placeholder="Min views filter"
+        value={minViews}
+        onChange={(e) => setMinViews(e.target.value)}
+        style={styles.filter}
+      />
 
-      <div style={{ display: "flex", gap: 20 }}>
+      {/* PANELS */}
+      <div style={styles.grid}>
 
-        {/* LEFT */}
-        <div style={panel}>
+        {/* DETAILS */}
+        <div style={styles.card}>
           <h3>📊 Video Details</h3>
-          {filteredVideos.map((v, i) => (
-            <div key={v.id} style={item}>
-              <b>{i + 1}. {v.title}</b><br />
-              👀 {v.views} | 📅 {new Date(v.date).toLocaleDateString()}
+          {filtered.map((v, i) => (
+            <div key={v.id} style={styles.item}>
+              <b>{i + 1}. {v.title}</b>
+              <div>👀 {v.views.toLocaleString()}</div>
+              <div>📅 {new Date(v.date).toLocaleDateString()}</div>
             </div>
           ))}
         </div>
 
-        {/* RIGHT */}
-        <div style={panel}>
+        {/* LINKS */}
+        <div style={styles.card}>
           <h3>🔗 Video Links</h3>
 
           <div style={{ marginBottom: 10 }}>
-            <button style={btn("#ef4444")} onClick={copyAllLinks}>Copy</button>
-            <button style={btn("#22c55e")} onClick={downloadCSV}>CSV</button>
-            <button style={btn("#3b82f6")} onClick={generateAITitles}>
+            <button style={styles.btnRed} onClick={copyLinks}>Copy</button>
+            <button style={styles.btnGreen} onClick={downloadCSV}>CSV</button>
+            <button style={styles.btnBlue} onClick={generateAI}>
               {aiLoading ? "AI..." : "AI Titles"}
             </button>
           </div>
 
-          {/* ✅ NUMBERED LIST */}
-          <ol style={{ paddingLeft: 20 }}>
-            {filteredVideos.map((v) => (
-              <li key={v.id} style={{ marginBottom: 6 }}>
-                <a
-                  href={v.url}
-                  target="_blank"
-                  style={{ color: "#60a5fa", wordBreak: "break-all" }}
-                >
+          <ol>
+            {filtered.map((v) => (
+              <li key={v.id}>
+                <a href={v.url} target="_blank" style={styles.link}>
                   {v.url}
                 </a>
               </li>
@@ -214,7 +205,7 @@ export default function App() {
 
       {/* AI OUTPUT */}
       {aiTitles && (
-        <div style={{ marginTop: 30, background: "#111827", padding: 20 }}>
+        <div style={styles.aiBox}>
           <h3>🤖 AI Titles</h3>
           <pre>{aiTitles}</pre>
         </div>
@@ -223,23 +214,86 @@ export default function App() {
   );
 }
 
-const panel = {
-  flex: 1,
-  background: "#1e293b",
-  padding: 20,
-  borderRadius: 12
+// 🎨 STYLES
+const styles = {
+  container: {
+    maxWidth: 1100,
+    margin: "auto",
+    padding: 20,
+    background: "#0f172a",
+    color: "#fff",
+    minHeight: "100vh"
+  },
+  title: {
+    textAlign: "center",
+    color: "#ef4444"
+  },
+  inputRow: {
+    display: "flex",
+    justifyContent: "center",
+    gap: 10,
+    marginBottom: 15
+  },
+  input: {
+    padding: 10,
+    borderRadius: 8,
+    width: 250
+  },
+  filter: {
+    display: "block",
+    margin: "auto",
+    marginBottom: 20,
+    padding: 8,
+    borderRadius: 8
+  },
+  grid: {
+    display: "flex",
+    gap: 20
+  },
+  card: {
+    flex: 1,
+    background: "#1e293b",
+    padding: 15,
+    borderRadius: 12
+  },
+  item: {
+    marginBottom: 10,
+    borderBottom: "1px solid #333"
+  },
+  link: {
+    color: "#60a5fa",
+    wordBreak: "break-all"
+  },
+  btnRed: {
+    background: "#ef4444",
+    color: "#fff",
+    padding: "8px 12px",
+    border: "none",
+    borderRadius: 6,
+    marginRight: 6,
+    cursor: "pointer"
+  },
+  btnGreen: {
+    background: "#22c55e",
+    color: "#fff",
+    padding: "8px 12px",
+    border: "none",
+    borderRadius: 6,
+    marginRight: 6,
+    cursor: "pointer"
+  },
+  btnBlue: {
+    background: "#3b82f6",
+    color: "#fff",
+    padding: "8px 12px",
+    border: "none",
+    borderRadius: 6,
+    cursor: "pointer"
+  },
+  aiBox: {
+    marginTop: 30,
+    background: "#111827",
+    padding: 15,
+    borderRadius: 10
+  }
 };
-
-const item = {
-  marginBottom: 10
-};
-
-const btn = (bg) => ({
-  padding: "10px 14px",
-  marginRight: 10,
-  background: bg,
-  color: "#fff",
-  border: "none",
-  borderRadius: 8,
-  cursor: "pointer"
-});
