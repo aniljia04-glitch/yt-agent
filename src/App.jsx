@@ -2,13 +2,13 @@ import { useState } from "react";
 
 export default function App() {
   const [channel, setChannel] = useState("");
+  const [minViews, setMinViews] = useState("");
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [aiTitles, setAiTitles] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
-  const [minViews, setMinViews] = useState("");
 
-  // 🎥 FETCH YOUTUBE
+  // FETCH YOUTUBE
   const fetchVideos = async (name) => {
     const key = import.meta.env.VITE_API_KEY;
 
@@ -50,6 +50,7 @@ export default function App() {
 
   const run = async () => {
     if (!channel.trim()) return;
+
     setLoading(true);
     setVideos([]);
     setAiTitles("");
@@ -93,12 +94,12 @@ export default function App() {
     a.click();
   };
 
-  // 🤖 AI FIXED
+  // AI FIX
   const generateAI = async () => {
     const key = import.meta.env.VITE_OPENAI_KEY;
 
     if (!key) {
-      setAiTitles("❌ Missing OpenAI Key");
+      setAiTitles("❌ OpenAI key missing in Vercel");
       return;
     }
 
@@ -120,12 +121,15 @@ export default function App() {
 
       const data = await res.json();
 
-      console.log(data); // debug
+      if (!res.ok) {
+        setAiTitles("❌ " + JSON.stringify(data));
+        return;
+      }
 
       const text =
         data.output_text ||
         data.output?.[0]?.content?.[0]?.text ||
-        "❌ AI returned empty response";
+        "No AI response";
 
       setAiTitles(text);
 
@@ -140,29 +144,35 @@ export default function App() {
     <div style={styles.container}>
       <h1 style={styles.title}>YT Agent 🔥</h1>
 
-      {/* INPUT */}
-      <div style={styles.inputRow}>
-        <input
-          value={channel}
-          onChange={(e) => setChannel(e.target.value)}
-          onKeyDown={handleEnter}
-          placeholder="Enter channel name"
-          style={styles.input}
-        />
+      {/* FORM SECTION */}
+      <div style={styles.form}>
 
-        <button style={styles.btnRed} onClick={run}>
-          {loading ? "Loading..." : "Extract"}
+        {/* CHANNEL */}
+        <div style={styles.inputGroup}>
+          <label>Channel Name</label>
+          <input
+            value={channel}
+            onChange={(e) => setChannel(e.target.value)}
+            onKeyDown={handleEnter}
+            placeholder="e.g. MrBeast"
+          />
+        </div>
+
+        {/* FILTER */}
+        <div style={styles.inputGroup}>
+          <label>Minimum Views Filter</label>
+          <input
+            type="number"
+            value={minViews}
+            onChange={(e) => setMinViews(e.target.value)}
+            placeholder="e.g. 100000"
+          />
+        </div>
+
+        <button style={styles.extractBtn} onClick={run}>
+          {loading ? "Loading..." : "Extract Videos"}
         </button>
       </div>
-
-      {/* FILTER */}
-      <input
-        type="number"
-        placeholder="Min views filter"
-        value={minViews}
-        onChange={(e) => setMinViews(e.target.value)}
-        style={styles.filter}
-      />
 
       {/* PANELS */}
       <div style={styles.grid}>
@@ -187,12 +197,12 @@ export default function App() {
             <button style={styles.btnRed} onClick={copyLinks}>Copy</button>
             <button style={styles.btnGreen} onClick={downloadCSV}>CSV</button>
             <button style={styles.btnBlue} onClick={generateAI}>
-              {aiLoading ? "AI..." : "AI Titles"}
+              {aiLoading ? "Generating..." : "AI Titles"}
             </button>
           </div>
 
           <ol>
-            {filtered.map((v) => (
+            {filtered.map(v => (
               <li key={v.id}>
                 <a href={v.url} target="_blank" style={styles.link}>
                   {v.url}
@@ -206,7 +216,7 @@ export default function App() {
       {/* AI OUTPUT */}
       {aiTitles && (
         <div style={styles.aiBox}>
-          <h3>🤖 AI Titles</h3>
+          <h3>🤖 AI Generated Titles</h3>
           <pre>{aiTitles}</pre>
         </div>
       )}
@@ -214,7 +224,7 @@ export default function App() {
   );
 }
 
-// 🎨 STYLES
+// STYLES
 const styles = {
   container: {
     maxWidth: 1100,
@@ -226,25 +236,27 @@ const styles = {
   },
   title: {
     textAlign: "center",
-    color: "#ef4444"
+    color: "#ef4444",
+    marginBottom: 20
   },
-  inputRow: {
+  form: {
     display: "flex",
+    gap: 15,
     justifyContent: "center",
-    gap: 10,
-    marginBottom: 15
+    alignItems: "end",
+    marginBottom: 25
   },
-  input: {
-    padding: 10,
+  inputGroup: {
+    display: "flex",
+    flexDirection: "column"
+  },
+  extractBtn: {
+    background: "#ef4444",
+    color: "#fff",
+    padding: "10px 16px",
     borderRadius: 8,
-    width: 250
-  },
-  filter: {
-    display: "block",
-    margin: "auto",
-    marginBottom: 20,
-    padding: 8,
-    borderRadius: 8
+    border: "none",
+    cursor: "pointer"
   },
   grid: {
     display: "flex",
@@ -268,27 +280,21 @@ const styles = {
     background: "#ef4444",
     color: "#fff",
     padding: "8px 12px",
-    border: "none",
     borderRadius: 6,
-    marginRight: 6,
-    cursor: "pointer"
+    marginRight: 6
   },
   btnGreen: {
     background: "#22c55e",
     color: "#fff",
     padding: "8px 12px",
-    border: "none",
     borderRadius: 6,
-    marginRight: 6,
-    cursor: "pointer"
+    marginRight: 6
   },
   btnBlue: {
     background: "#3b82f6",
     color: "#fff",
     padding: "8px 12px",
-    border: "none",
-    borderRadius: 6,
-    cursor: "pointer"
+    borderRadius: 6
   },
   aiBox: {
     marginTop: 30,
