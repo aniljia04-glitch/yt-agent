@@ -7,7 +7,7 @@ export default function App() {
   const [aiTitles, setAiTitles] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
 
-  // 🎥 FETCH YOUTUBE DATA
+  // 🎥 FETCH YOUTUBE
   const fetchVideosFromYouTube = async (channelName) => {
     const API_KEY = import.meta.env.VITE_API_KEY;
 
@@ -56,6 +56,7 @@ export default function App() {
 
     setLoading(true);
     setVideos([]);
+    setAiTitles("");
 
     try {
       const data = await fetchVideosFromYouTube(channel);
@@ -67,13 +68,18 @@ export default function App() {
     }
   };
 
-  // 📋 COPY LINKS
+  // ENTER KEY SUPPORT ✅
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter") run();
+  };
+
+  // COPY LINKS
   const copyAllLinks = () => {
     navigator.clipboard.writeText(videos.map(v => v.url).join("\n"));
     alert("Copied!");
   };
 
-  // 📥 CSV DOWNLOAD
+  // CSV
   const downloadCSV = () => {
     const rows = videos.map(v =>
       `"${v.title}",${v.views},${new Date(v.date).toLocaleDateString()},${v.url}`
@@ -87,14 +93,9 @@ export default function App() {
     a.click();
   };
 
-  // 🤖 AI TITLES (FIXED)
+  // AI
   const generateAITitles = async () => {
     const key = import.meta.env.VITE_OPENAI_KEY;
-
-    if (!key) {
-      setAiTitles("❌ Missing OpenAI key in Vercel");
-      return;
-    }
 
     setAiLoading(true);
     setAiTitles("");
@@ -108,16 +109,11 @@ export default function App() {
         },
         body: JSON.stringify({
           model: "gpt-4o-mini",
-          input: `Create 10 viral YouTube titles based on:\n${videos.map(v => v.title).join("\n")}`
+          input: `Generate 10 viral YouTube titles based on:\n${videos.map(v => v.title).join("\n")}`
         }),
       });
 
       const data = await res.json();
-
-      if (!res.ok) {
-        setAiTitles("❌ " + JSON.stringify(data));
-        return;
-      }
 
       const text =
         data.output_text ||
@@ -141,36 +137,25 @@ export default function App() {
       minHeight: "100vh",
       fontFamily: "Inter, sans-serif"
     }}>
-      <h1 style={{ color: "#ef4444", marginBottom: 20 }}>
-        YT Agent 🔥
-      </h1>
+      <h1 style={{ color: "#ef4444" }}>YT Agent 🔥</h1>
 
       {/* INPUT */}
       <div style={{ marginBottom: 25 }}>
         <input
           value={channel}
           onChange={(e) => setChannel(e.target.value)}
+          onKeyDown={handleKeyPress}  // ✅ ENTER FIX
           placeholder="Enter channel name"
           style={{
             padding: 12,
             borderRadius: 8,
             border: "1px solid #333",
             marginRight: 10,
-            width: 250
+            width: 260
           }}
         />
 
-        <button
-          onClick={run}
-          style={{
-            padding: "12px 20px",
-            background: "#ef4444",
-            color: "#fff",
-            border: "none",
-            borderRadius: 8,
-            cursor: "pointer"
-          }}
-        >
+        <button style={btn("#ef4444")} onClick={run}>
           {loading ? "Loading..." : "Extract"}
         </button>
       </div>
@@ -179,16 +164,11 @@ export default function App() {
       <div style={{ display: "flex", gap: 25 }}>
 
         {/* LEFT */}
-        <div style={{
-          flex: 1,
-          background: "#1e293b",
-          padding: 20,
-          borderRadius: 12
-        }}>
+        <div style={panel}>
           <h3>📊 Video Details</h3>
 
           {videos.map((v, i) => (
-            <div key={v.id} style={{ marginBottom: 15 }}>
+            <div key={v.id} style={item}>
               <b>{i + 1}. {v.title}</b><br />
               👀 {v.views} | 📅 {new Date(v.date).toLocaleDateString()}
             </div>
@@ -196,15 +176,9 @@ export default function App() {
         </div>
 
         {/* RIGHT */}
-        <div style={{
-          flex: 1,
-          background: "#1e293b",
-          padding: 20,
-          borderRadius: 12
-        }}>
-          <h3>🔗 Links</h3>
+        <div style={panel}>
+          <h3>🔗 Video Links</h3>
 
-          {/* BUTTON ROW */}
           <div style={{ marginBottom: 15 }}>
             <button style={btn("#ef4444")} onClick={copyAllLinks}>Copy</button>
             <button style={btn("#22c55e")} onClick={downloadCSV}>CSV</button>
@@ -213,11 +187,24 @@ export default function App() {
             </button>
           </div>
 
-          {videos.map((v, i) => (
-            <div key={v.id} style={{ marginBottom: 5 }}>
-              {i + 1}. <a href={v.url} target="_blank">{v.url}</a>
-            </div>
-          ))}
+          {/* CLEAN LIST */}
+          <ul style={{ paddingLeft: 20 }}>
+            {videos.map((v, i) => (
+              <li key={v.id} style={{ marginBottom: 8 }}>
+                <a
+                  href={v.url}
+                  target="_blank"
+                  style={{
+                    color: "#60a5fa",
+                    textDecoration: "none",
+                    wordBreak: "break-all"
+                  }}
+                >
+                  {v.url}
+                </a>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
 
@@ -237,7 +224,20 @@ export default function App() {
   );
 }
 
-// 🎨 BUTTON STYLE
+// 🎨 STYLES
+const panel = {
+  flex: 1,
+  background: "#1e293b",
+  padding: 20,
+  borderRadius: 12
+};
+
+const item = {
+  marginBottom: 15,
+  borderBottom: "1px solid #333",
+  paddingBottom: 10
+};
+
 const btn = (bg) => ({
   padding: "10px 14px",
   marginRight: 10,
