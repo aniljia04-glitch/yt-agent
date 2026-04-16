@@ -8,7 +8,7 @@ export default function App() {
   const [aiTitles, setAiTitles] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
 
-  // FETCH YOUTUBE
+  // FETCH
   const fetchVideos = async (name) => {
     const key = import.meta.env.VITE_API_KEY;
 
@@ -57,7 +57,7 @@ export default function App() {
     try {
       const data = await fetchVideos(channel);
       setVideos(data);
-    } catch (e) {
+    } catch {
       alert("Channel not found");
     } finally {
       setLoading(false);
@@ -68,32 +68,25 @@ export default function App() {
     if (e.key === "Enter") run();
   };
 
-  // FILTER
   const filtered = videos.filter(v =>
     minViews ? v.views >= Number(minViews) : true
   );
 
-  // COPY
   const copyLinks = () => {
     navigator.clipboard.writeText(filtered.map(v => v.url).join("\n"));
-    alert("Copied!");
   };
 
-  // CSV
   const downloadCSV = () => {
     const rows = filtered.map(v =>
       `"${v.title}",${v.views},${new Date(v.date).toLocaleDateString()},${v.url}`
     );
-    const csv = "Title,Views,Date,URL\n" + rows.join("\n");
-
-    const blob = new Blob([csv]);
+    const blob = new Blob(["Title,Views,Date,URL\n" + rows.join("\n")]);
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = "videos.csv";
     a.click();
   };
 
-  // AI
   const generateAI = async () => {
     const key = import.meta.env.VITE_OPENAI_KEY;
 
@@ -109,23 +102,22 @@ export default function App() {
         },
         body: JSON.stringify({
           model: "gpt-4o-mini",
-          input: `Create 10 viral YouTube titles based on:\n${filtered.map(v => v.title).join("\n")}`
+          input: `Generate 10 viral YouTube titles:\n${filtered.map(v => v.title).join("\n")}`
         })
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setAiTitles("⚠️ Add billing in OpenAI (quota exceeded)");
+        setAiTitles("⚠️ Add billing in OpenAI");
         return;
       }
 
-      const text =
+      setAiTitles(
         data.output_text ||
         data.output?.[0]?.content?.[0]?.text ||
-        "No response";
-
-      setAiTitles(text);
+        "No response"
+      );
 
     } catch (err) {
       setAiTitles("Error: " + err.message);
@@ -138,19 +130,19 @@ export default function App() {
     <div style={styles.container}>
       <h1 style={styles.title}>YT Agent 🔥</h1>
 
-      {/* INPUT */}
+      {/* FORM */}
       <div style={styles.form}>
-        <div>
+        <div style={styles.field}>
           <label>Channel Name</label>
           <input
             value={channel}
             onChange={(e) => setChannel(e.target.value)}
             onKeyDown={handleEnter}
-            placeholder="e.g. MrBeast"
+            placeholder="MrBeast"
           />
         </div>
 
-        <div>
+        <div style={styles.field}>
           <label>Minimum Views</label>
           <input
             type="number"
@@ -167,7 +159,7 @@ export default function App() {
 
       <div style={styles.grid}>
 
-        {/* LEFT */}
+        {/* DETAILS */}
         <div style={styles.card}>
           <h3>📊 Video Details</h3>
 
@@ -184,11 +176,11 @@ export default function App() {
           ))}
         </div>
 
-        {/* RIGHT */}
+        {/* LINKS */}
         <div style={styles.card}>
           <h3>🔗 Links</h3>
 
-          <div style={{ marginBottom: 10 }}>
+          <div style={styles.btnRow}>
             <button style={styles.red} onClick={copyLinks}>Copy</button>
             <button style={styles.green} onClick={downloadCSV}>CSV</button>
             <button style={styles.blue} onClick={generateAI}>
@@ -196,7 +188,7 @@ export default function App() {
             </button>
           </div>
 
-          <ol>
+          <ol style={{ paddingLeft: 20 }}>
             {filtered.map(v => (
               <li key={v.id}>
                 <a href={v.url} target="_blank" style={styles.link}>
@@ -208,9 +200,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* AI */}
       {aiTitles && (
-        <div style={styles.ai}>
+        <div style={styles.aiBox}>
           <h3>🤖 AI Titles</h3>
           <pre>{aiTitles}</pre>
         </div>
@@ -219,51 +210,75 @@ export default function App() {
   );
 }
 
-// STYLES
 const styles = {
   container: {
     maxWidth: 1100,
     margin: "auto",
-    padding: 20,
+    padding: 30,
     background: "#0f172a",
     color: "#fff"
   },
-  title: { textAlign: "center", color: "#ef4444" },
+  title: {
+    textAlign: "center",
+    color: "#ef4444",
+    marginBottom: 30
+  },
   form: {
     display: "flex",
     gap: 20,
     justifyContent: "center",
-    marginBottom: 20
+    alignItems: "flex-end",
+    marginBottom: 30
+  },
+  field: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 6
   },
   extract: {
     background: "#ef4444",
+    padding: "10px 16px",
+    borderRadius: 8,
     color: "#fff",
-    padding: "10px 15px",
-    borderRadius: 8
+    border: "none",
+    cursor: "pointer"
   },
-  grid: { display: "flex", gap: 20 },
+  grid: {
+    display: "flex",
+    gap: 20
+  },
   card: {
     flex: 1,
     background: "#1e293b",
-    padding: 15,
-    borderRadius: 10
+    padding: 20,
+    borderRadius: 12
   },
   videoCard: {
     display: "flex",
-    gap: 10,
-    marginBottom: 10,
+    gap: 12,
+    marginBottom: 15,
     borderBottom: "1px solid #333",
     paddingBottom: 10
   },
-  thumb: { width: 120, borderRadius: 6 },
-  red: { background: "#ef4444", marginRight: 6 },
-  green: { background: "#22c55e", marginRight: 6 },
-  blue: { background: "#3b82f6" },
+  thumb: {
+    width: 140,
+    height: 80,
+    objectFit: "cover",
+    borderRadius: 8
+  },
+  btnRow: {
+    display: "flex",
+    gap: 10,
+    marginBottom: 10
+  },
+  red: { background: "#ef4444", padding: 8, borderRadius: 6 },
+  green: { background: "#22c55e", padding: 8, borderRadius: 6 },
+  blue: { background: "#3b82f6", padding: 8, borderRadius: 6 },
   link: { color: "#60a5fa" },
-  ai: {
-    marginTop: 20,
+  aiBox: {
+    marginTop: 30,
     background: "#111827",
-    padding: 15,
+    padding: 20,
     borderRadius: 10
   }
 };
