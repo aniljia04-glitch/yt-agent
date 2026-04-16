@@ -29,7 +29,7 @@ export default function App() {
       channelData.items[0].contentDetails.relatedPlaylists.uploads;
 
     const videosRes = await fetch(
-      `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&maxResults=20&key=${API_KEY}`
+      `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&maxResults=50&key=${API_KEY}`
     );
     const videosData = await videosRes.json();
 
