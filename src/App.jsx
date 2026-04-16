@@ -5,7 +5,10 @@ export default function App() {
   const [minViews, setMinViews] = useState("");
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [aiTitles, setAiTitles] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
 
+  // FETCH
   const fetchVideos = async (name) => {
     const key = import.meta.env.VITE_API_KEY;
 
@@ -47,6 +50,7 @@ export default function App() {
 
     setLoading(true);
     setVideos([]);
+    setAiTitles("");
 
     try {
       const data = await fetchVideos(channel);
@@ -58,36 +62,97 @@ export default function App() {
     }
   };
 
+  const handleEnter = (e) => {
+    if (e.key === "Enter") run();
+  };
+
   const filtered = videos.filter(v =>
     minViews ? v.views >= Number(minViews) : true
   );
+
+  const copyLinks = () => {
+    navigator.clipboard.writeText(filtered.map(v => v.url).join("\n"));
+    alert("Copied!");
+  };
+
+  const downloadCSV = () => {
+    const rows = filtered.map(v =>
+      `"${v.title}",${v.views},${new Date(v.date).toLocaleDateString()},${v.url}`
+    );
+
+    const blob = new Blob(["Title,Views,Date,URL\n" + rows.join("\n")]);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "videos.csv";
+    a.click();
+  };
+
+  const generateAI = async () => {
+    const key = import.meta.env.VITE_OPENAI_KEY;
+
+    setAiLoading(true);
+    setAiTitles("");
+
+    try {
+      const res = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          input: `Generate 10 viral YouTube titles:\n${filtered.map(v => v.title).join("\n")}`
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setAiTitles("⚠️ Add billing in OpenAI");
+        return;
+      }
+
+      setAiTitles(
+        data.output_text ||
+        data.output?.[0]?.content?.[0]?.text ||
+        "No response"
+      );
+
+    } catch (err) {
+      setAiTitles("Error: " + err.message);
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   return (
     <div style={styles.container}>
       <h1 style={styles.title}>YT Agent 🔥</h1>
 
       {/* FORM */}
-      <div style={styles.formGrid}>
+      <div style={styles.form}>
         <div style={styles.field}>
           <label>Channel Name</label>
           <input
+            style={styles.input}
             value={channel}
             onChange={(e) => setChannel(e.target.value)}
-            placeholder="MrBeast"
+            onKeyDown={handleEnter}
           />
         </div>
 
         <div style={styles.field}>
           <label>Minimum Views</label>
           <input
+            style={styles.input}
             type="number"
             value={minViews}
             onChange={(e) => setMinViews(e.target.value)}
-            placeholder="100000"
           />
         </div>
 
-        <button style={styles.extract} onClick={run}>
+        <button style={styles.button} onClick={run}>
           {loading ? "Loading..." : "Extract"}
         </button>
       </div>
@@ -100,12 +165,15 @@ export default function App() {
 
           {filtered.map((v, i) => (
             <div key={v.id} style={styles.videoCard}>
-              <img src={v.thumbnail} style={styles.thumb} />
+              <a href={v.url} target="_blank">
+                <img src={v.thumbnail} style={styles.thumb} />
+              </a>
 
               <div>
                 <b>{i + 1}. {v.title}</b>
-                <div>👀 {v.views.toLocaleString()}</div>
-                <div>📅 {new Date(v.date).toLocaleDateString()}</div>
+                <div style={styles.meta}>
+                  👀 {v.views.toLocaleString()} | 📅 {new Date(v.date).toLocaleDateString()}
+                </div>
               </div>
             </div>
           ))}
@@ -115,9 +183,17 @@ export default function App() {
         <div style={styles.card}>
           <h3>🔗 Links</h3>
 
+          <div style={styles.actions}>
+            <button style={styles.red} onClick={copyLinks}>Copy</button>
+            <button style={styles.green} onClick={downloadCSV}>CSV</button>
+            <button style={styles.blue} onClick={generateAI}>
+              {aiLoading ? "AI..." : "AI Titles"}
+            </button>
+          </div>
+
           <ol style={styles.linkList}>
-            {filtered.map((v) => (
-              <li key={v.id} style={styles.linkItem}>
+            {filtered.map(v => (
+              <li key={v.id}>
                 <a href={v.url} target="_blank" style={styles.link}>
                   {v.url}
                 </a>
@@ -126,6 +202,13 @@ export default function App() {
           </ol>
         </div>
       </div>
+
+      {aiTitles && (
+        <div style={styles.aiBox}>
+          <h3>🤖 AI Titles</h3>
+          <pre>{aiTitles}</pre>
+        </div>
+      )}
     </div>
   );
 }
@@ -145,12 +228,12 @@ const styles = {
     marginBottom: 30
   },
 
-  // ✅ PERFECT ALIGNMENT GRID
-  formGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr auto",
+  // ✅ PERFECT ALIGNMENT
+  form: {
+    display: "flex",
     gap: 20,
-    alignItems: "end",
+    justifyContent: "center",
+    alignItems: "flex-end",
     marginBottom: 30
   },
 
@@ -160,12 +243,21 @@ const styles = {
     gap: 6
   },
 
-  extract: {
-    height: 40,
+  input: {
+    height: 42,
+    padding: "0 10px",
+    borderRadius: 8,
+    border: "1px solid #333",
+    background: "#020617",
+    color: "#fff"
+  },
+
+  button: {
+    height: 42,
     padding: "0 20px",
     background: "#ef4444",
-    border: "none",
     borderRadius: 8,
+    border: "none",
     color: "#fff",
     cursor: "pointer"
   },
@@ -197,21 +289,37 @@ const styles = {
     borderRadius: 8
   },
 
-  // ✅ FIXED LINKS
+  meta: {
+    marginTop: 6,
+    color: "#94a3b8"
+  },
+
+  actions: {
+    display: "flex",
+    gap: 10,
+    marginBottom: 10
+  },
+
+  red: { background: "#ef4444", padding: "8px 12px", borderRadius: 6 },
+  green: { background: "#22c55e", padding: "8px 12px", borderRadius: 6 },
+  blue: { background: "#3b82f6", padding: "8px 12px", borderRadius: 6 },
+
   linkList: {
     paddingLeft: 20,
     display: "flex",
     flexDirection: "column",
-    gap: 10
-  },
-
-  linkItem: {
-    lineHeight: 1.5
+    gap: 8
   },
 
   link: {
     color: "#60a5fa",
-    wordBreak: "break-all",
-    textDecoration: "none"
+    wordBreak: "break-all"
+  },
+
+  aiBox: {
+    marginTop: 30,
+    background: "#111827",
+    padding: 20,
+    borderRadius: 10
   }
 };
